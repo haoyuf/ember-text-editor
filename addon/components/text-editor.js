@@ -9,7 +9,7 @@ export default Ember.Component.extend({
 
   editorApiBaseUrl: 'https://cdn.jsdelivr.net/ace',
   editorApiVersion: '1.2.0',
-  language: 'js',
+  language: 'javascript',
   tabSize: 2,
   theme: 'monokai',
 
@@ -20,7 +20,7 @@ export default Ember.Component.extend({
 
   /* Properties */
 
-  classNames: ['code-editor', 'loaded'],
+  classNames: ['ember-text-editor'],
   editor: null,
   layout: null,
 
@@ -54,22 +54,22 @@ export default Ember.Component.extend({
   init() {
     this._super(...arguments);
     this.loadEditorApi();
-  }
+  },
 
   loadEditorApi() {
     const baseUrl = this.get('baseUrl');
+    const loadExtras = () => {
+      this.loadEditorExtras().then(() => {
+        this.renderEditor();
+      });
+    }
 
     /* Ensure the core library loads before the extras */
 
     if (!window.ace) {
-      this._getScript(`${baseUrl}ace.js`).then(() => {
-        this.loadEditorExtras();
-      });
+      this._getScript(`${baseUrl}ace.js`).then(loadExtras);
     } else {
-      this.loadEditorExtras().then(() => {
-        this.sendAction('editorDependenciesDidLoad');
-        this.renderEditor();
-      });
+      loadExtras();
     }
   },
 
@@ -105,7 +105,13 @@ export default Ember.Component.extend({
       /* Then, once the extras are finished loading, render
       the editor */
 
-      RSVP.allSettled(extrasPromises).then(resolve, reject);
+      RSVP.allSettled(extrasPromises).then(() => {
+        this.sendAction('editorDependenciesDidLoad');
+        resolve();
+      }, () => {
+        Ember.warn('There was an error loading Ace editor dependencies');
+        reject();
+      });
     });
   },
 
@@ -127,7 +133,7 @@ export default Ember.Component.extend({
 
       editorSession.setMode(`ace/mode/${language}`);
       editorSession.setTabSize(tabSize);
-      editorSession.setValue(content);
+      // editorSession.setValue(content);
 
       this.sendAction('editorDidRender');
 
